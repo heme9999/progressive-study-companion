@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://progressive-study-companion.pages.dev/sitemap.xml

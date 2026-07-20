@@ -1,0 +1,529 @@
+import React, { useState, useEffect } from "react";
+import { BookCourse, UserProgress, ChatMessage } from "./types";
+import { defaultBooks } from "./data/defaultBooks";
+import SyllabusRoadmap from "./components/SyllabusRoadmap";
+import MilestoneStudy from "./components/MilestoneStudy";
+import BookUploader from "./components/BookUploader";
+import {
+  GraduationCap,
+  Flame,
+  Trophy,
+  Target,
+  Plus,
+  BookMarked,
+  Share2,
+  Trash2,
+  BookOpen,
+} from "lucide-react";
+
+export default function App() {
+  // 1. STATE INITIALIZATION
+  const [books, setBooks] = useState<BookCourse[]>(defaultBooks);
+  const [selectedBookId, setSelectedBookId] = useState<string>("japanese-survival");
+  const [currentMilestoneIndices, setCurrentMilestoneIndices] = useState<Record<string, number>>({});
+  const [progresses, setProgresses] = useState<Record<string, UserProgress>>({});
+  const [showUploader, setShowUploader] = useState(false);
+  const [streak, setStreak] = useState(1);
+
+  // 2. LIFECYCLE: LOAD PERSISTENCE
+  useEffect(() => {
+    // A. Load custom books
+    try {
+      const storedCustomBooks = localStorage.getItem("progressive_study_custom_books");
+      if (storedCustomBooks) {
+        const parsed: BookCourse[] = JSON.parse(storedCustomBooks);
+        setBooks([...defaultBooks, ...parsed]);
+      }
+    } catch (e) {
+      console.error("Error reading custom books from localStorage:", e);
+    }
+
+    // B. Load user study progress
+    try {
+      const storedProgress = localStorage.getItem("progressive_study_progress");
+      if (storedProgress) {
+        setProgresses(JSON.parse(storedProgress));
+      }
+    } catch (e) {
+      console.error("Error reading progress from localStorage:", e);
+    }
+
+    // C. Load active streak & calculate if still active
+    try {
+      const lastStudyDate = localStorage.getItem("progressive_study_last_date");
+      const savedStreak = localStorage.getItem("progressive_study_streak");
+      const todayStr = new Date().toDateString();
+
+      if (savedStreak) {
+        const streakNum = parseInt(savedStreak, 10);
+        if (lastStudyDate) {
+          const lastDate = new Date(lastStudyDate);
+          const today = new Date(todayStr);
+          const diffTime = Math.abs(today.getTime() - lastDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            // Consecutive day!
+            setStreak(streakNum);
+          } else if (diffDays === 0) {
+            // Already studied today
+            setStreak(streakNum);
+          } else {
+            // Streak broken
+            setStreak(1);
+          }
+        } else {
+          setStreak(1);
+        }
+      } else {
+        setStreak(1);
+      }
+    } catch (e) {
+      console.error("Error reading streak from localStorage:", e);
+    }
+  }, []);
+
+  // 3. PERSISTENCE PERSIST ON STATE CHANGES
+  const saveProgressToStorage = (updated: Record<string, UserProgress>) => {
+    setProgresses(updated);
+    localStorage.setItem("progressive_study_progress", JSON.stringify(updated));
+    
+    // Update study date to today to feed the streak
+    const todayStr = new Date().toDateString();
+    const lastDate = localStorage.getItem("progressive_study_last_date");
+    if (lastDate !== todayStr) {
+      localStorage.setItem("progressive_study_last_date", todayStr);
+      const newStreak = lastDate && new Date(todayStr).getTime() - new Date(lastDate).getTime() <= 86400000 * 1.5 ? streak + 1 : 1;
+      setStreak(newStreak);
+      localStorage.setItem("progressive_study_streak", newStreak.toString());
+    }
+  };
+
+  // 4. FIND ACTIVE CURRICULUM DATA
+  const activeBook = books.find((b) => b.id === selectedBookId) || books[0];
+  const activeMilestoneIndex = currentMilestoneIndices[selectedBookId] ?? 0;
+  const activeMilestone = activeBook.milestones[activeMilestoneIndex] || activeBook.milestones[0];
+
+  // Helper: Retrieve progress for selected book (or return default blank state)
+  const getBookProgress = (bookId: string): UserProgress => {
+    return (
+      progresses[bookId] || {
+        bookId,
+        completedMilestones: [],
+        quizScores: {},
+        chats: {},
+      }
+    );
+  };
+
+  const activeProgress = getBookProgress(selectedBookId);
+
+  // 5. CALLBACK HANDLERS
+  const handleSelectMilestone = (idx: number) => {
+    setCurrentMilestoneIndices((prev) => ({
+      ...prev,
+      [selectedBookId]: idx,
+    }));
+  };
+
+  const handlePassMilestone = (scorePercentage: number) => {
+    const bookProgress = getBookProgress(selectedBookId);
+    
+    // Add current milestone index to completed array if not already present
+    const completedSet = new Set(bookProgress.completedMilestones);
+    
+    // Check if score is passing (>= 66%)
+    if (scorePercentage >= 66) {
+      completedSet.add(activeMilestoneIndex);
+    }
+
+    // Save score as highest attempt score
+    const currentHighScore = bookProgress.quizScores[activeMilestoneIndex] || 0;
+    const newScores = {
+      ...bookProgress.quizScores,
+      [activeMilestoneIndex]: Math.max(currentHighScore, scorePercentage),
+    };
+
+    const updatedProgress = {
+      ...progresses,
+      [selectedBookId]: {
+        ...bookProgress,
+        completedMilestones: Array.from(completedSet),
+        quizScores: newScores,
+      },
+    };
+
+    saveProgressToStorage(updatedProgress);
+  };
+
+  const handleSaveChats = (chats: ChatMessage[]) => {
+    const bookProgress = getBookProgress(selectedBookId);
+    const updatedProgress = {
+      ...progresses,
+      [selectedBookId]: {
+        ...bookProgress,
+        chats: {
+          ...bookProgress.chats,
+          [activeMilestoneIndex]: chats,
+        },
+      },
+    };
+
+    setProgresses(updatedProgress);
+    localStorage.setItem("progressive_study_progress", JSON.stringify(updatedProgress));
+  };
+
+  const handleSyllabusGenerated = (newCourse: BookCourse) => {
+    const updatedBooks = [...books, newCourse];
+    setBooks(updatedBooks);
+    
+    // Save custom books to storage
+    const customBooksOnly = updatedBooks.filter((b) => b.isCustom);
+    localStorage.setItem("progressive_study_custom_books", JSON.stringify(customBooksOnly));
+
+    // Switch to new course immediately
+    setSelectedBookId(newCourse.id);
+    setCurrentMilestoneIndices((prev) => ({
+      ...prev,
+      [newCourse.id]: 0,
+    }));
+    setShowUploader(false);
+  };
+
+  const handleDeleteBook = (bookId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("确定要删除这本自定义书籍及其所有学习进度吗？")) return;
+
+    const updatedBooks = books.filter((b) => b.id !== bookId);
+    setBooks(updatedBooks);
+
+    // Save updated list
+    const customBooksOnly = updatedBooks.filter((b) => b.isCustom);
+    localStorage.setItem("progressive_study_custom_books", JSON.stringify(customBooksOnly));
+
+    // Remove progress
+    const updatedProgresses = { ...progresses };
+    delete updatedProgresses[bookId];
+    setProgresses(updatedProgresses);
+    localStorage.setItem("progressive_study_progress", JSON.stringify(updatedProgresses));
+
+    // Fallback switch to default book
+    if (selectedBookId === bookId) {
+      setSelectedBookId("japanese-survival");
+    }
+  };
+
+  // 6. CALCULATE GLOBAL STATS
+  const totalCompletedMilestones = (Object.values(progresses) as UserProgress[]).reduce(
+    (acc, prog) => acc + (prog.completedMilestones?.length || 0),
+    0
+  );
+
+  const totalQuizAverage = () => {
+    const allScores: number[] = [];
+    (Object.values(progresses) as UserProgress[]).forEach((p) => {
+      if (p.quizScores) {
+        (Object.values(p.quizScores) as number[]).forEach((s) => allScores.push(s));
+      }
+    });
+    if (allScores.length === 0) return 0;
+    const sum = allScores.reduce((acc, v) => acc + v, 0);
+    return Math.round(sum / allScores.length);
+  };
+
+  return (
+    <div id="app-root-container" className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
+      
+      {/* GLOBAL NAVBAR */}
+      <header id="app-navbar" className="h-16 border-b border-slate-200 bg-white sticky top-0 z-40 shadow-xs">
+        <div className="max-w-7xl mx-auto h-full px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold font-display shadow-sm shadow-indigo-100">
+              📚
+            </div>
+            <div>
+              <span className="text-slate-950 font-display font-bold text-base tracking-tight flex items-center gap-1.5">
+                LibreStep 循序渐进智能学习
+                <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-mono">
+                  PRO
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-xs text-slate-500 font-mono hidden sm:block">
+              <span className="font-bold text-indigo-600 font-display">Level {totalCompletedMilestones + 1}</span> • {totalCompletedMilestones * 150 + totalQuizAverage() * 5} XP
+            </div>
+            <div className="w-9 h-9 rounded-full bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center font-display font-bold text-xs text-indigo-600 uppercase">
+              HM
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* TOP ROW: BENTO HERO ROW */}
+      <section id="bento-hero-section" className="max-w-7xl mx-auto w-full px-6 pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          
+          {/* LARGE CARD: Active Learning Path (col-span-8) */}
+          <div id="bento-hero-learning-path" className="lg:col-span-8 bg-white rounded-3xl border border-slate-200 shadow-xs p-8 flex flex-col justify-between relative overflow-hidden">
+            {/* Top Badge */}
+            <div className="absolute top-0 right-0 p-8">
+              <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase font-sans ${
+                activeProgress.completedMilestones.includes(activeMilestoneIndex)
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-indigo-100 text-indigo-800"
+              }`}>
+                {activeProgress.completedMilestones.includes(activeMilestoneIndex) ? "Completed (已通关)" : "In Progress (研学中)"}
+              </span>
+            </div>
+
+            {/* Content */}
+            <div className="mb-8">
+              <p className="text-indigo-600 font-bold text-[11px] tracking-widest uppercase mb-2 font-display">
+                {activeBook.title}
+              </p>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-4 leading-tight font-display">
+                第 {activeMilestoneIndex + 1} 阶段: {activeMilestone.title.replace(/^第.*?阶段：/, "")}
+              </h1>
+              <p className="text-slate-500 text-xs md:text-sm max-w-2xl leading-relaxed">
+                {activeBook.description}
+              </p>
+            </div>
+
+            {/* Bottom stats and action */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-4 border-t border-slate-100">
+              <div className="flex space-x-8">
+                <div>
+                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1 tracking-wider">预估用时</p>
+                  <p className="text-slate-900 font-semibold text-xs sm:text-sm font-display">30-45 分钟</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1 tracking-wider">阶段难度</p>
+                  <p className={`font-semibold text-xs sm:text-sm font-display ${
+                    activeMilestone.difficulty === "Easy"
+                      ? "text-sky-600"
+                      : activeMilestone.difficulty === "Medium"
+                      ? "text-orange-500"
+                      : "text-rose-600"
+                  }`}>
+                    {activeMilestone.difficulty === "Easy" ? "初级入门 (Easy)" : activeMilestone.difficulty === "Medium" ? "中级巩固 (Intermediate)" : "高级精进 (Hard)"}
+                  </p>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  const element = document.getElementById("milestone-study-panel");
+                  if (element) {
+                    element.scrollIntoView({ behavior: "smooth" });
+                  }
+                }}
+                className="bg-indigo-600 text-white text-xs px-6 py-2.5 rounded-2xl font-bold font-display hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-1.5 shrink-0 self-start sm:self-auto"
+              >
+                <span>继续研习本阶段</span>
+                <span className="font-mono">→</span>
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT CARD: Overall Progress / Mastery Overview (col-span-4) */}
+          <div id="bento-mastery-overview" className="lg:col-span-4 bg-slate-900 rounded-3xl p-8 flex flex-col justify-between text-white shadow-md shadow-slate-950/10">
+            <div>
+              <h3 className="text-lg font-bold mb-6 font-display flex items-center gap-2">
+                <span className="text-amber-400">📊</span> 研学进度大盘
+              </h3>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between text-xs mb-2 opacity-85 font-medium">
+                    <span>当前书目通关进度</span>
+                    <span>{Math.round((activeProgress.completedMilestones.length / activeBook.milestones.length) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${(activeProgress.completedMilestones.length / activeBook.milestones.length) * 100}%` }}></div>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-xs mb-2 opacity-85 font-medium">
+                    <span>测试平均正确率</span>
+                    <span>{totalQuizAverage()}%</span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="bg-emerald-400 h-full rounded-full transition-all duration-500" style={{ width: `${totalQuizAverage()}%` }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* CORE WORKSPACE: TIMELINE MAP & STUDY AREA */}
+      <main id="main-workspace-grid" className="max-w-7xl mx-auto w-full px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN: TIMELINE ROADMAP TREE (Cols 4) */}
+        <aside className="lg:col-span-4 h-full">
+          {!showUploader && (
+            <SyllabusRoadmap
+              milestones={activeBook.milestones}
+              currentMilestoneIndex={activeMilestoneIndex}
+              onSelectMilestone={handleSelectMilestone}
+              progress={activeProgress}
+            />
+          )}
+        </aside>
+
+        {/* RIGHT COLUMN: ACTIVE STUDY HUB OR BOOK COMPILER (Cols 8) */}
+        <section className="lg:col-span-8 h-full flex flex-col">
+          {showUploader ? (
+            <BookUploader onSyllabusGenerated={handleSyllabusGenerated} />
+          ) : (
+            <MilestoneStudy
+              milestone={activeMilestone}
+              milestoneIndex={activeMilestoneIndex}
+              onPassMilestone={handlePassMilestone}
+              completed={activeProgress.completedMilestones.includes(activeMilestoneIndex)}
+              savedChats={activeProgress.chats[activeMilestoneIndex] || []}
+              onSaveChats={handleSaveChats}
+            />
+          )}
+        </section>
+
+      </main>
+
+      {/* BOTTOM SECTION: GORGEOUS BENTO BOOKSHELF GRID */}
+      <section id="bento-bookshelf-section" className="max-w-7xl mx-auto w-full px-6 py-8 border-t border-slate-200 mt-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 font-display flex items-center gap-2">
+              📚 研学藏书阁 (Study Bookshelf)
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              通过精致的 Bento 卡片管理推荐书籍和您的自定义研学教材
+            </p>
+          </div>
+        </div>
+
+        {/* Horizontal Book Cards Bento Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {books.map((book) => {
+            const isSelected = book.id === selectedBookId;
+            const bookProgress = getBookProgress(book.id);
+            const completedCount = bookProgress.completedMilestones.length;
+
+            return (
+              <div
+                key={book.id}
+                id={`book-card-${book.id}`}
+                onClick={() => {
+                  setSelectedBookId(book.id);
+                  setShowUploader(false);
+                  document.getElementById("bento-hero-learning-path")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className={`group bg-white rounded-3xl border p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-md cursor-pointer ${
+                  isSelected
+                    ? "border-indigo-600 ring-4 ring-indigo-600/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  {/* Miniature Cover Representation */}
+                  <div className={`w-12 h-16 rounded-lg border-r-4 shrink-0 shadow-xs flex items-center justify-center font-bold text-lg select-none ${
+                    book.id === "japanese-survival"
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                      : book.id === "japanese-explore"
+                      ? "bg-amber-50 border-amber-400 text-amber-700"
+                      : "bg-indigo-50 border-indigo-400 text-indigo-700"
+                  }`}>
+                    {book.title.includes("生存") ? "生" : book.title.includes("吃喝") ? "玩" : "日"}
+                  </div>
+                  
+                  <div className="text-right flex flex-col items-end">
+                    {isSelected ? (
+                      <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-bold">
+                        正在研读
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 bg-slate-50 text-slate-500 rounded-full text-[10px] font-medium border border-slate-100">
+                        藏书教材
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h4 className="font-bold text-slate-900 text-xs md:text-sm line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                    {book.title}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium font-sans mt-0.5">
+                    {book.isCustom ? "自定义导入" : "官方精选推荐"}
+                  </p>
+                </div>
+
+                <div className="mt-auto pt-3 border-t border-slate-100">
+                  <div className="flex justify-between text-[10px] font-bold mb-1">
+                    <span className="text-slate-400 font-sans">研学进度</span>
+                    <span className="text-indigo-600 font-mono">{Math.round((completedCount / book.milestones.length) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${(completedCount / book.milestones.length) * 100}%` }}
+                    />
+                  </div>
+                  
+                  {book.isCustom && (
+                    <div className="flex justify-end mt-3">
+                      <button
+                        onClick={(e) => handleDeleteBook(book.id, e)}
+                        className="text-slate-400 hover:text-red-500 p-1 rounded-md transition-colors text-[10px] font-semibold flex items-center gap-0.5"
+                        title="删除此书"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>移除</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ADD BOOK COMPILED CARD (Matches the stats cards in Bento HTML) */}
+          <div
+            onClick={() => {
+              setShowUploader(true);
+              document.getElementById("main-workspace-grid")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="bg-indigo-50/50 rounded-3xl border border-indigo-100 p-6 flex flex-col justify-center items-center text-center hover:bg-indigo-100/40 hover:border-indigo-200 transition-all cursor-pointer shadow-xs min-h-[190px]"
+          >
+            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg mb-3 shadow-sm shadow-indigo-200">
+              +
+            </div>
+            <p className="font-bold text-indigo-900 text-xs font-display">导入新书定制路线</p>
+            <p className="text-[10px] text-slate-400 mt-1.5 max-w-[160px] leading-relaxed">
+              上传纯文本或粘贴材料，AI 即刻编制 5 阶段专属学习线路！
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer id="app-footer" className="bg-white border-t border-slate-200 py-8 text-center text-xs text-slate-400 mt-12">
+        <p className="font-semibold text-slate-600 font-display">
+          循序渐进智能学习助手 —— 让每一本好书，都成为您登天阶梯
+        </p>
+        <p className="text-[10px] mt-1.5 text-slate-400 font-mono">
+          © 2026 Progressive Study Hub • Powered by Gemini 3.5 Flash & Antigravity Agent.
+        </p>
+      </footer>
+
+    </div>
+  );
+}
