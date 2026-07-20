@@ -15,19 +15,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not defined in Environment Variables." },
-        { status: 500 }
-      );
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not defined in Environment Variables." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const body = await request.json() as any;
     const { milestoneTitle, milestoneSummary, keyConcepts, messages } = body;
     if (!milestoneTitle || !milestoneSummary || !messages) {
-      return NextResponse.json(
-        { error: "milestoneTitle, milestoneSummary, and messages are required." },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "milestoneTitle, milestoneSummary, and messages are required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const formattedContents = messages.map((m: any) => ({
@@ -76,21 +76,24 @@ Rules for your conversation:
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      return NextResponse.json(
-        { error: `Gemini API error: ${errText}` },
-        { status: geminiRes.status }
-      );
+      return new Response(JSON.stringify({ error: `Gemini API error: ${errText}` }), {
+        status: geminiRes.status,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const data = await geminiRes.json() as any;
     const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No reply generated.";
 
-    return NextResponse.json({ reply });
+    return new Response(JSON.stringify({ reply }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
 
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "An error occurred." },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: err.message || "An error occurred." }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 }

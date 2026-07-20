@@ -15,19 +15,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not defined in Environment Variables." },
-        { status: 500 }
-      );
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not defined in Environment Variables." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const body = await request.json() as any;
     const { title, description } = body;
     if (!title || !description) {
-      return NextResponse.json(
-        { error: "Book title and content/description are required." },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "Book title and content/description are required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const prompt = `You are an expert educator, curriculum designer, and academic tutor. 
@@ -124,32 +124,33 @@ Guidelines:
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      return NextResponse.json(
-        { error: `Gemini API error: ${errText}` },
-        { status: geminiRes.status }
-      );
+      return new Response(JSON.stringify({ error: `Gemini API error: ${errText}` }), {
+        status: geminiRes.status,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const data = await geminiRes.json() as any;
     const textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textResult) {
-      return NextResponse.json(
-        { error: "Failed to generate syllabus from Gemini." },
-        { status: 500 }
-      );
+      return new Response(JSON.stringify({ error: "Failed to generate syllabus from Gemini." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     // Return the JSON string as is (it's already a stringified JSON from Gemini)
-    return new NextResponse(textResult, {
+    return new Response(textResult, {
+      status: 200,
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
       }
     });
 
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "An error occurred." },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: err.message || "An error occurred." }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 }
