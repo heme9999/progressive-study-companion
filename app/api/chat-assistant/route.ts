@@ -1,22 +1,34 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    let apiKey = process.env.GEMINI_API_KEY;
+    try {
+      const env = getRequestContext().env as any;
+      if (env && env.GEMINI_API_KEY) {
+        apiKey = env.GEMINI_API_KEY;
+      }
+    } catch (e) {
+      // Ignore if getRequestContext fails (e.g., local dev without wrangler)
+    }
+
     if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY is not defined in Environment Variables." }),
-        { status: 500, headers: { "content-type": "application/json" } }
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY is not defined in Environment Variables." },
+        { status: 500 }
       );
     }
 
     const body = await request.json() as any;
     const { milestoneTitle, milestoneSummary, keyConcepts, messages } = body;
     if (!milestoneTitle || !milestoneSummary || !messages) {
-      return new Response(
-        JSON.stringify({ error: "milestoneTitle, milestoneSummary, and messages are required." }),
-        { status: 400, headers: { "content-type": "application/json" } }
+      return NextResponse.json(
+        { error: "milestoneTitle, milestoneSummary, and messages are required." },
+        { status: 400 }
       );
     }
 
@@ -66,28 +78,21 @@ Rules for your conversation:
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      return new Response(
-        JSON.stringify({ error: `Gemini API error: ${errText}` }),
-        { status: geminiRes.status, headers: { "content-type": "application/json" } }
+      return NextResponse.json(
+        { error: `Gemini API error: ${errText}` },
+        { status: geminiRes.status }
       );
     }
 
     const data = await geminiRes.json() as any;
     const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No reply generated.";
 
-    return new Response(
-      JSON.stringify({ reply }),
-      {
-        headers: {
-          "content-type": "application/json",
-        }
-      }
-    );
+    return NextResponse.json({ reply });
 
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || "An error occurred." }),
-      { status: 500, headers: { "content-type": "application/json" } }
+    return NextResponse.json(
+      { error: err.message || "An error occurred." },
+      { status: 500 }
     );
   }
 }
