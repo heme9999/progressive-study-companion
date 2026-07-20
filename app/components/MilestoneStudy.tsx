@@ -569,32 +569,21 @@ export default function MilestoneStudy({
     setChatError(null);
 
     try {
-      const response = await fetch("/api/chat-assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          milestoneTitle: milestone.title,
-          milestoneSummary: milestone.summary,
-          keyConcepts: milestone.keyConcepts,
-          messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
+      const data = await chatAssistantAction({
+        milestoneTitle: milestone.title,
+        milestoneSummary: milestone.summary,
+        keyConcepts: milestone.keyConcepts,
+        messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        try {
-          const errData = JSON.parse(errText);
-          throw new Error(errData.error || "API returned an error");
-        } catch (e) {
-          throw new Error(`Server Error: ${errText.slice(0, 100)}`);
-        }
+      if (data.error) {
+        throw new Error(data.error);
       }
 
-      const data = await response.json();
       const aiMessage: ChatMessage = {
         id: Math.random().toString(36).substring(7),
         role: "assistant",
-        content: data.reply,
+        content: data.reply || "No reply",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 

@@ -6,6 +6,8 @@ interface BookUploaderProps {
   onSyllabusGenerated: (course: BookCourse) => void;
 }
 
+import { generateSyllabusAction } from "../actions/generateSyllabus";
+
 export default function BookUploader({ onSyllabusGenerated }: BookUploaderProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -107,23 +109,18 @@ export default function BookUploader({ onSyllabusGenerated }: BookUploaderProps)
     const intervalId = startStepAnimation();
 
     try {
-      const response = await fetch("/api/generate-syllabus", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: content.trim().substring(0, 50000), // Safety limit for input tokens
-        }),
-      });
+      const data = await generateSyllabusAction(
+        title.trim(),
+        content.trim().substring(0, 50000)
+      );
 
       clearInterval(intervalId);
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "课程大纲生成失败");
+      if (data.error) {
+        throw new Error(data.error);
       }
 
-      const generatedSyllabus = await response.json();
+      const generatedSyllabus = JSON.parse(data.result);
       
       // Assemble new course object
       const newCourse: BookCourse = {

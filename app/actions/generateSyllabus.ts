@@ -1,21 +1,22 @@
-export async function onRequestPost(context: any) {
-  try {
-    const apiKey = context.env.GEMINI_API_KEY;
+"use server";
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not defined in Environment Variables." }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      });
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export async function generateSyllabusAction(title: string, description: string) {
+  try {
+    let apiKey = process.env.GEMINI_API_KEY;
+    try {
+      apiKey = getRequestContext().env.GEMINI_API_KEY || apiKey;
+    } catch (e) {
+      // Fallback for local dev
     }
 
-    const body = await context.request.json();
-    const { title, description } = body;
+    if (!apiKey) {
+      return { error: "GEMINI_API_KEY is not defined in Environment Variables." };
+    }
+
     if (!title || !description) {
-      return new Response(JSON.stringify({ error: "Book title and content/description are required." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      });
+      return { error: "Book title and content/description are required." };
     }
 
     const prompt = `You are an expert educator, curriculum designer, and academic tutor. 
@@ -112,31 +113,18 @@ Guidelines:
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      return new Response(JSON.stringify({ error: `Gemini API error: ${errText}` }), {
-        status: geminiRes.status,
-        headers: { "Content-Type": "application/json" }
-      });
+      return { error: `Gemini API error: ${errText}` };
     }
 
-    const data = (await geminiRes.json()) as any;
+    const data = await geminiRes.json() as any;
     const textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textResult) {
-      return new Response(JSON.stringify({ error: "Failed to generate syllabus from Gemini." }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      });
+      return { error: "Failed to generate syllabus from Gemini." };
     }
 
-    // Return the JSON string as is (it's already a stringified JSON from Gemini)
-    return new Response(textResult, {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
+    return { result: textResult };
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || "An error occurred." }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return { error: err.message || "An error occurred." };
   }
 }
