@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BookCourse, UserProgress } from "../types";
-import { defaultBooks } from "../data/defaultBooks";
-import BookUploader from "../components/BookUploader";
+import { BookCourse, UserProgress } from "./types";
+import { defaultBooks } from "./data/defaultBooks";
+import BookUploader from "./components/BookUploader";
 import { Trash2 } from "lucide-react";
 
 export default function HomePage() {
