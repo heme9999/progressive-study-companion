@@ -123,7 +123,7 @@ export default function CourseClientPage({ id }: { id: string }) {
 
       {/* Main Workspace */}
       <main className="max-w-7xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-grow">
-        <aside id="roadmap-aside" className="lg:col-span-4 h-full lg:sticky lg:top-24 scroll-mt-24">
+        <aside id="roadmap-aside" className="lg:col-span-4 relative lg:sticky lg:top-24 scroll-mt-24 z-10">
           <SyllabusRoadmap
             milestones={book.milestones}
             currentMilestoneIndex={activeMilestoneIndex}
@@ -138,7 +138,7 @@ export default function CourseClientPage({ id }: { id: string }) {
           />
         </aside>
 
-        <section id="milestone-content" className="lg:col-span-8 h-full flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 p-2 scroll-mt-24">
+        <section id="milestone-content" className="lg:col-span-8 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 p-2 scroll-mt-24 relative z-0">
           <MilestoneStudy
             milestone={activeMilestone}
             milestoneIndex={activeMilestoneIndex}
