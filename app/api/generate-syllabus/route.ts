@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    let apiKey = process.env.GEMINI_API_KEY;
-    try {
-      const env = getRequestContext().env as any;
-      if (env && env.GEMINI_API_KEY) {
-        apiKey = env.GEMINI_API_KEY;
-      }
-    } catch (e) {
-      // Ignore
-    }
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
