@@ -1197,28 +1197,29 @@ export default function MilestoneStudy({
             )}
 
             {/* Input field */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage(chatInput);
-              }}
-              className="flex gap-2"
-            >
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSendMessage(chatInput);
+                  }
+                }}
                 placeholder="在此输入您的疑问，例如：怎么把这个精神运用到工作中？..."
                 className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
               />
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleSendMessage(chatInput)}
                 disabled={!chatInput.trim() || isChatLoading}
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center justify-center"
               >
                 <Send className="w-4 h-4" />
               </button>
-            </form>
+            </div>
           </div>
         )}
 
