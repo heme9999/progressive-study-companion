@@ -580,8 +580,13 @@ export default function MilestoneStudy({
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "API returned an error");
+        const errText = await response.text();
+        try {
+          const errData = JSON.parse(errText);
+          throw new Error(errData.error || "API returned an error");
+        } catch (e) {
+          throw new Error(`Server Error: ${errText.slice(0, 100)}`);
+        }
       }
 
       const data = await response.json();
