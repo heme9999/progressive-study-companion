@@ -297,7 +297,8 @@ export default function MilestoneStudy({
     setQuizAnswers({});
     setChatMessages(savedChats);
     stopSpeaking();
-  }, [milestoneIndex, savedChats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [milestoneIndex]);
 
   // Sync chats back to App state
   useEffect(() => {
