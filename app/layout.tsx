@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "LibreStep 循序渐进智能学习助手 - AI驱动的沉浸式学习规划平台",
   description: "LibreStep 循序渐进智能学习助手，提供AI驱动的书籍研读、自定义学习路线规划、阶段测试与智能伴学对话等功能，帮助你高效、系统地掌握任何新知识。",
+  verification: {
+    google: "wMz2VDeMwD8R6yiCgJIqFD_wM2wSzrSEauzvCtzKHyw",
+  },
 };
 
 export default function RootLayout({
