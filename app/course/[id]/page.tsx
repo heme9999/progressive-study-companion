@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { defaultBooks } from "../../data/defaultBooks";
 import CourseClientPage from "./CourseClientPage";
 import { Metadata } from "next";
