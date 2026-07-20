@@ -10,4 +10,4 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: 'https://progressive-study-companion.pages.dev/sitemap.xml',
   };
 }
-export const runtime = "edge";
+export const dynamic = "force-static";

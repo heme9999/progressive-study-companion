@@ -1,4 +1,4 @@
-export const runtime = "edge";
+export const dynamicParams = false;
 import { defaultBooks } from "../../data/defaultBooks";
 import CourseClientPage from "./CourseClientPage";
 import { Metadata } from "next";

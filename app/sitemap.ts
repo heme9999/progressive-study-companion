@@ -24,4 +24,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [...routes, ...courseRoutes];
 }
-export const runtime = "edge";
+export const dynamic = "force-static";
