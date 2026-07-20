@@ -26,6 +26,6 @@
     "@tailwindcss/postcss": "^4.0.6",
     "postcss": "^8.5.2",
     "typescript": "~5.8.2",
-    "@cloudflare/next-on-pages": "^1.13.7"
+    "@cloudflare/next-on-pages": "^1.11.3"
   }
 }
