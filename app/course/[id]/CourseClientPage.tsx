@@ -123,16 +123,22 @@ export default function CourseClientPage({ id }: { id: string }) {
 
       {/* Main Workspace */}
       <main className="max-w-7xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-grow">
-        <aside className="lg:col-span-4 h-full sticky top-24">
+        <aside className="lg:col-span-4 h-full lg:sticky lg:top-24">
           <SyllabusRoadmap
             milestones={book.milestones}
             currentMilestoneIndex={activeMilestoneIndex}
-            onSelectMilestone={setActiveMilestoneIndex}
+            onSelectMilestone={(index) => {
+              setActiveMilestoneIndex(index);
+              // scroll to content on mobile (and desktop for consistent UX)
+              setTimeout(() => {
+                document.getElementById('milestone-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            }}
             progress={activeProgress}
           />
         </aside>
 
-        <section className="lg:col-span-8 h-full flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 p-2">
+        <section id="milestone-content" className="lg:col-span-8 h-full flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 p-2 scroll-mt-24">
           <MilestoneStudy
             milestone={activeMilestone}
             milestoneIndex={activeMilestoneIndex}
