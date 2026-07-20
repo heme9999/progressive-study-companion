@@ -1,25 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-
-export const runtime = "edge";
-export const dynamic = "force-dynamic";
-
-export async function POST(request: NextRequest) {
+export async function onRequestPost(context: any) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const { request, env } = context;
+    const apiKey = env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not defined in Environment Variables." },
-        { status: 500 }
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY is not defined in Environment Variables." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const body = await request.json() as any;
+    const body = await request.json();
     const { title, description } = body;
     if (!title || !description) {
-      return NextResponse.json(
-        { error: "Book title and content/description are required." },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: "Book title and content/description are required." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -91,7 +87,7 @@ Guidelines:
       required: ["bookTitle", "description", "milestones"]
     };
 
-    const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+    const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const geminiRes = await fetch(apiEndpoint, {
       method: "POST",
@@ -117,32 +113,31 @@ Guidelines:
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      return NextResponse.json(
-        { error: `Gemini API error: ${errText}` },
-        { status: geminiRes.status }
+      return new Response(
+        JSON.stringify({ error: `Gemini API error: ${errText}` }),
+        { status: geminiRes.status, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const data = await geminiRes.json() as any;
+    const data: any = await geminiRes.json();
     const textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textResult) {
-      return NextResponse.json(
-        { error: "Failed to generate syllabus from Gemini." },
-        { status: 500 }
+      return new Response(
+        JSON.stringify({ error: "Failed to generate syllabus from Gemini." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Return the JSON string as is (it's already a stringified JSON from Gemini)
-    return new NextResponse(textResult, {
+    return new Response(textResult, {
       headers: {
         "content-type": "application/json",
       }
     });
 
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "An error occurred." },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: err.message || "An error occurred." }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
