@@ -31,7 +31,7 @@ Guidelines:
 3. For each milestone:
    - Generate a clean, short, inspiring Title (e.g. "第一阶段：认识‘仁’的本意" or "Milestone 1: The Call of the Desert").
    - Write a rich, informative, and engaging Summary/Reading material (approx 200-300 words in Chinese/English based on the input text's language) that teaches the core message of this milestone. It must contain actual knowledge and depth, not just generic filler.
-   - Define 2-4 Key Concepts/Vocabulary terms with elegant definitions.
+   - Define 5-8 Key Concepts/Vocabulary terms with elegant definitions. (More concepts are preferred over fewer).
    - Create exactly 3 distinct multiple choice questions with 4 options each, indicating the correct option index (0 to 3) and a detailed explanation of why the correct answer is right and others are wrong.
 4. Ensure the output language matches the input language (use Chinese if input is Chinese, or English if input is English).`;
 
@@ -51,7 +51,7 @@ Guidelines:
               difficulty: { type: "STRING", description: "Difficulty level: 'Easy', 'Medium', or 'Hard'" },
               keyConcepts: {
                 type: "ARRAY",
-                description: "2-4 key vocabularies, core terms, or abstract concepts covered in this milestone",
+                description: "5-8 key vocabularies, core terms, or abstract concepts covered in this milestone",
                 items: {
                   type: "OBJECT",
                   properties: {

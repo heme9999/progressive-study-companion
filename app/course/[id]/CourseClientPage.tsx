@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BookCourse, UserProgress, ChatMessage } from "../../types";
+import { BookCourse, UserProgress } from "../../types";
 import { defaultBooks } from "../../data/defaultBooks";
 import SyllabusRoadmap from "../../components/SyllabusRoadmap";
 import MilestoneStudy from "../../components/MilestoneStudy";
@@ -77,22 +77,6 @@ export default function CourseClientPage({ id }: { id: string }) {
     localStorage.setItem("progressive_study_progress", JSON.stringify(updatedProgress));
   };
 
-  const handleSaveChats = (chats: ChatMessage[]) => {
-    const bookProgress = getBookProgress(bookId);
-    const updatedProgress = {
-      ...progresses,
-      [bookId]: {
-        ...bookProgress,
-        chats: {
-          ...bookProgress.chats,
-          [activeMilestoneIndex]: chats,
-        },
-      },
-    };
-    setProgresses(updatedProgress);
-    localStorage.setItem("progressive_study_progress", JSON.stringify(updatedProgress));
-  };
-
   return (
     <div className="w-full flex-grow flex flex-col">
       {/* Top Hero */}
@@ -123,7 +107,7 @@ export default function CourseClientPage({ id }: { id: string }) {
 
       {/* Main Workspace */}
       <main className="max-w-7xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-grow">
-        <aside id="roadmap-aside" className="lg:col-span-4 relative lg:sticky lg:top-24 scroll-mt-24 z-10">
+        <aside id="roadmap-aside" className="lg:col-span-4 relative lg:sticky lg:top-24 scroll-mt-24 z-10 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 pr-2">
           <SyllabusRoadmap
             milestones={book.milestones}
             currentMilestoneIndex={activeMilestoneIndex}
@@ -144,8 +128,6 @@ export default function CourseClientPage({ id }: { id: string }) {
             milestoneIndex={activeMilestoneIndex}
             onPassMilestone={handlePassMilestone}
             completed={activeProgress.completedMilestones.includes(activeMilestoneIndex)}
-            savedChats={activeProgress.chats[activeMilestoneIndex] || []}
-            onSaveChats={handleSaveChats}
           />
           
           <div className="p-4 border-t border-slate-100 flex justify-center mt-auto">

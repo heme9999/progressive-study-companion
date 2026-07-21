@@ -233,19 +233,15 @@ interface MilestoneStudyProps {
   milestoneIndex: number;
   onPassMilestone: (scorePercentage: number) => void;
   completed: boolean;
-  savedChats: ChatMessage[];
-  onSaveChats: (chats: ChatMessage[]) => void;
 }
 
-type TabType = "reading" | "concepts" | "chat" | "quiz";
+type TabType = "reading" | "concepts" | "quiz";
 
 export default function MilestoneStudy({
   milestone,
   milestoneIndex,
   onPassMilestone,
   completed,
-  savedChats,
-  onSaveChats,
 }: MilestoneStudyProps) {
   const [activeTab, setActiveTab] = useState<TabType>("reading");
 
@@ -270,13 +266,6 @@ export default function MilestoneStudy({
   // Concept card flip states
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
 
-  // Chat states
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(savedChats);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
-
   // Quiz states
   const [quizStarted, setQuizStarted] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
@@ -295,22 +284,9 @@ export default function MilestoneStudy({
     setQuizScore(0);
     setQuizFinished(false);
     setQuizAnswers({});
-    setChatMessages(savedChats);
     stopSpeaking();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [milestoneIndex]);
-
-  // Sync chats back to App state
-  useEffect(() => {
-    onSaveChats(chatMessages);
-  }, [chatMessages]);
-
-  // Scroll chat to bottom on new messages
-  useEffect(() => {
-    if (activeTab === "chat" && chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [chatMessages, activeTab]);
 
   // Load and update SpeechSynthesis voices
   useEffect(() => {
@@ -551,62 +527,6 @@ export default function MilestoneStudy({
   };
 
 
-  // --- Chat Functions ---
-  const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isChatLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: Math.random().toString(36).substring(7),
-      role: "user",
-      content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    const updatedMessages = [...chatMessages, userMessage];
-    setChatMessages(updatedMessages);
-    setChatInput("");
-    setIsChatLoading(true);
-    setChatError(null);
-
-    try {
-      const data = await chatAssistantAction({
-        milestoneTitle: milestone.title,
-        milestoneSummary: milestone.summary,
-        keyConcepts: milestone.keyConcepts,
-        messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
-      });
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const aiMessage: ChatMessage = {
-        id: Math.random().toString(36).substring(7),
-        role: "assistant",
-        content: data.reply || "No reply",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-
-      setChatMessages((prev) => [...prev, aiMessage]);
-    } catch (err: any) {
-      console.error(err);
-      setChatError(err.message || "连接学习助教失败，请稍后重试。");
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
-  const clearChat = () => {
-    setChatMessages([]);
-  };
-
-  // Pre-packed prompt recommendations
-  const smartSuggestions = [
-    `请用一个通俗的故事，帮我解释这一关的核心概念`,
-    `我不太懂这里的 "${milestone.keyConcepts[0]?.term || "核心概念"}"，能举例说明吗？`,
-    `我想知道这些观点，怎样应用到我日常的生活和工作中？`,
-  ];
-
   // --- Quiz Functions ---
   const handleOptionSelect = (optionIdx: number) => {
     if (selectedOption !== null) return; // Prevent double selecting
@@ -681,20 +601,7 @@ export default function MilestoneStudy({
           )}
         </button>
 
-        <button
-          onClick={() => { setActiveTab("chat"); stopSpeaking(); }}
-          className={`pb-3 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-all relative ${
-            activeTab === "chat"
-              ? "text-indigo-600 font-bold"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          AI 助教答疑
-          {activeTab === "chat" && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
-          )}
-        </button>
+
 
         <button
           onClick={() => { setActiveTab("quiz"); stopSpeaking(); }}
@@ -1088,129 +995,7 @@ export default function MilestoneStudy({
           </div>
         )}
 
-        {/* TAB 3: AI STUDY BUDDY GROUNDED CHAT */}
-        {activeTab === "chat" && (
-          <div id="chat-tab-view" className="flex flex-col h-full max-w-3xl mx-auto space-y-4">
-            {/* Header info */}
-            <div className="flex items-center justify-between bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 px-4 text-xs">
-              <div className="flex items-center gap-2 text-indigo-800">
-                <MessageSquareCode className="w-4 h-4 text-indigo-500" />
-                <span>
-                  当前已被 grounded 在：<b>{milestone.title.slice(0, 20)}...</b> 的知识域内
-                </span>
-              </div>
-              <button
-                onClick={clearChat}
-                className="text-slate-400 hover:text-red-500 transition-colors text-[11px] font-semibold"
-              >
-                重置对话
-              </button>
-            </div>
 
-            {/* Chat message flow container */}
-            <div className="flex-1 min-h-[250px] max-h-[380px] overflow-y-auto border border-slate-200/60 rounded-3xl bg-slate-50/30 p-4 space-y-4">
-              {chatMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 text-lg font-bold">
-                    🎓
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-bold text-slate-700">我是你的专属书友 BookMate</h3>
-                    <p className="text-[11px] text-slate-400 max-w-sm leading-relaxed">
-                      你可以向我提问任何关于本书、本关内容的问题，我会精准为您答疑解惑。
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                chatMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-sm space-y-1 ${
-                        msg.role === "user"
-                          ? "bg-indigo-600 text-white rounded-br-none"
-                          : "bg-white border border-slate-100 text-slate-800 rounded-bl-none"
-                      }`}
-                    >
-                      <div className="font-sans whitespace-pre-wrap">{msg.content}</div>
-                      <div
-                        className={`text-[9px] text-right mt-1 ${
-                          msg.role === "user" ? "text-indigo-200" : "text-slate-400"
-                        }`}
-                      >
-                        {msg.timestamp}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-              {isChatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-none p-3.5 shadow-sm space-y-2">
-                    <div className="flex gap-1.5 items-center">
-                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
-                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {chatError && (
-                <div className="text-center py-2 text-xs text-red-500 bg-red-50 rounded-xl border border-red-100 font-medium">
-                  {chatError}
-                </div>
-              )}
-              <div ref={chatBottomRef} />
-            </div>
-
-            {/* Smart Prompt Suggestions */}
-            {chatMessages.length === 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">
-                  💡 猜你想问 (Smart suggestions)
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {smartSuggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSendMessage(suggestion)}
-                      className="text-[11px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all text-left font-medium"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Input field */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSendMessage(chatInput);
-                  }
-                }}
-                placeholder="在此输入您的疑问，例如：怎么把这个精神运用到工作中？..."
-                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              <button
-                type="button"
-                onClick={() => handleSendMessage(chatInput)}
-                disabled={!chatInput.trim() || isChatLoading}
-                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center justify-center"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* TAB 4: QUIZ TESTING SECTION */}
         {activeTab === "quiz" && (
